@@ -17,7 +17,7 @@ public interface BinarySearchTree<E> {
 
     boolean isEmpty(); // tells us whether the BST is empty
 
-    boolean contains(E e); // checks for an element in the BST
+    // boolean contains(E e); // checks for an element in the BST
 
     boolean contains(Integer integer);
 

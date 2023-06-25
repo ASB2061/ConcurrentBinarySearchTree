@@ -52,9 +52,10 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
         treeLock = new AtomicBoolean(false);
         treeAccess = new Semaphore(1);
         inserterLock = new Semaphore(1);
-        inserterTreeAccess = new Semaphore(1);
-        removerTreeAccess = new Semaphore(1);
+//        inserterTreeAccess = new Semaphore(1);
+//        removerTreeAccess = new Semaphore(1);
     }
+
     public BST(int rootElement) {
         data = rootElement;
         leftSubTree = null;
@@ -65,48 +66,146 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
         treeLock = new AtomicBoolean(false);
         treeAccess = new Semaphore(1);
         inserterLock = new Semaphore(1);
-        inserterTreeAccess = new Semaphore(1);
-        removerTreeAccess = new Semaphore(1);
+//        inserterTreeAccess = new Semaphore(1);
+//        removerTreeAccess = new Semaphore(1);
     }
 
     @Override
     public void insert(Integer element) throws InterruptedException {
         //inserterTreeAccess.acquire();
-        treeStateInitialize(true, element);
-        inserterCount.incrementAndGet();
+        // treeStateInitialize(true, element);
+        // inserterCount.incrementAndGet();
         insertRecursive(element, null, null);
     }
 
     private void insertRecursive(Integer element, BST<Integer> parent, BST<Integer> superParent) {
-        
+        try {
+            // size++;
+            if (parent != null) {
+                inserterLock.acquire(1);
+                parent.inserterLock.release();
+                if (data == null) { // if the element is null we can place it there.
+                    data = element;
+                    inserterLock.release();
+                    insertExit(superParent);
+                } else if (element.compareTo(data) > 0 && (rightSubTree == null)) { // if the element is greater and there is no
+                    rightSubTree = new BST<>(element);
+                    inserterLock.release();
+                    insertExit(superParent);
+                } else if (element.compareTo(data) > 0) { // if the element is greater
+                    rightSubTree.insertRecursive(element, (BST<Integer>) this, superParent); // we recurse until there is an empty subtree to add the element
+                } else if (element.compareTo(data) <= 0 && (leftSubTree == null)) { // if the element is lesser and there is no
+                    // leftSubtree
+                    leftSubTree = new BST<>(element);
+                    inserterLock.release();
+                    insertExit(superParent);
+                } else if (element.compareTo(data) <= 0) { // if the element is lesser and there is a leftSubTree
+                    leftSubTree.insertRecursive(element, (BST<Integer>) this, superParent); // we recurse until there is an empty subtree to add the element
+                }
+            } else {
+                inserterLock.acquire(1);
+                if (data == null) { // if the element is null we can place it there.
+                    data = element;
+                    inserterLock.release();
+                    insertExit((BST<Integer>) this);
+                } else if (element.compareTo(data) > 0 && (rightSubTree == null)) { // if the element is greater and there is no subtree
+                    rightSubTree = new BST<>(element);
+                    inserterLock.release();
+                    insertExit((BST<Integer>) this);
+                } else if (element.compareTo(data) > 0) { // if the element is greater
+                    rightSubTree.insertRecursive(element, (BST<Integer>) this, (BST<Integer>) this); // we recurse until there is an empty subtree to add the element
+                } else if (element.compareTo(data) <= 0 && (leftSubTree == null)) { // if the element is lesser and there is no
+                    // leftSubtree
+                    leftSubTree = new BST<>(element);
+                    inserterLock.release();
+                    insertExit((BST<Integer>) this);
+                } else if (element.compareTo(data) <= 0) { // if the element is lesser and there is a leftSubTree
+                    leftSubTree.insertRecursive(element, (BST<Integer>) this, (BST<Integer>) this); // we recurse until there is an empty subtree to add the element
+                }
+            }
+        } catch (InterruptedException j) {
+        }
+    }
+
+    private void insertExit(BST<Integer> superTree) {
+        superTree.inserterCount.decrementAndGet();
+        if (superTree.inserterCount.compareAndSet(0, 0)) {
+            // superTree.removerTreeAccess.release();
+        }
     }
 
     @Override
-    public void remove(Integer integer) throws InterruptedException {
+    public void remove(Integer e) throws InterruptedException {
         //removerTreeAccess.acquire();
-        treeStateInitialize(false, integer);
+        // treeStateInitialize(false, integer);
         removerCount.incrementAndGet();
+        removeRecursive(e, null, null);
     }
+    private void removeRecursive(Integer e, BST<Integer> parent, BST<Integer> superParent) {
+        try {
+            if (data == null) { // if the root is already null then we can't do anything
+                return;
+            } else if (data.compareTo(e) > 0) { // if root is greater than the element we are searching for, we look in the
+                // left sub tree.
 
-    private void treeStateInitialize(boolean isInserter, Integer data) throws InterruptedException {
-        if (treeLock.compareAndSet(false, true)) {
-            if (isInserter) {
-                inserterTreeAccess.acquire();
-                removerTreeAccess.acquire();
-                treeAccess.acquire();
-            } else {
-                inserterTreeAccess.acquire();
-                removerTreeAccess.acquire();
-                treeAccess.acquire();
+                leftSubTree.removeRecursive(e, (BST<Integer>) this, (BST<Integer>) this);
+            } else if (data.compareTo(e) < 0) { // if root is less than the element we are searching for we look in the right
+                // sub tree
+
+                rightSubTree.removeRecursive(e, (BST<Integer>) this, (BST<Integer>) this);
+            } else if (data.compareTo(e) == 0) { // we have found the node that we were looking for (I still haven't found what I'm looking for ... U2)
+                if (leftSubTree == null && rightSubTree == null) {
+                    size--;
+                    try {
+                        data = null;
+                    } catch (NullPointerException g) {
+                    }
+                    return;
+                } else if (leftSubTree == null) { // if there is no left node.
+                    size--;
+                    data = rightSubTree.data;
+                    leftSubTree = rightSubTree.leftSubTree;
+                    rightSubTree = rightSubTree.rightSubTree;
+                    return;
+                } else if (rightSubTree == null) { // if there is no right node.
+                    size--;
+                    data = leftSubTree.data;
+                    rightSubTree = leftSubTree.rightSubTree;
+                    leftSubTree = leftSubTree.leftSubTree;
+                    return;
+                } else { // if there are two nodes
+                    size--;
+                    data = minValue(rightSubTree).getRootElement(); // we get the lowest node on the right subtree
+                    minValue(rightSubTree).data = null; // remove the old val and turn it null
+                    return;
+                    // rightSubTree.data = remove(rightSubTree.data);
+                }
             }
-        } else {
-            if (isInserter) {
-                inserterTreeAccess.acquire();
-            } else {
-                removerTreeAccess.acquire();
-            }
+        } catch (NullPointerException g) {
+
         }
     }
+
+//    private void treeStateInitialize(boolean isInserter, Integer data) throws InterruptedException {
+//        if (treeLock.compareAndSet(false, true)) {
+//            if (isInserter) {
+//                inserterTreeAccess.acquire();
+//                removerTreeAccess.acquire();
+//                treeAccess.acquire();
+//            } else {
+//                inserterTreeAccess.acquire();
+//                removerTreeAccess.acquire();
+//                treeAccess.acquire();
+//            }
+//        } else {
+//            if (isInserter) {
+//                inserterTreeAccess.acquire();
+//            } else {
+//                removerTreeAccess.acquire();
+//            }
+//        }
+//    }
+
     @Override
     public Integer getRootElement() {
         return data;
@@ -122,18 +221,100 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
         return false;
     }
 
-    @Override
-    public boolean contains(E e) {
-        return false;
-    }
+//    public boolean contains(E e) {
+//        return false;
+//    }
 
     @Override
     public boolean contains(Integer integer) {
+        try {
+            if (data == null) {
+                return false;
+            } else {
+                if (data.compareTo(integer) > 0 && leftSubTree != null) {
+                    return leftSubTree.contains(integer);
+                } else if (data.compareTo(integer) < 0 && rightSubTree != null) {
+                    return rightSubTree.contains(integer);
+                } else if (data.compareTo(integer) == 0) {
+                    return true;
+                }
+            }
+        } catch (NullPointerException g) {
+        }
         return false;
+    }
+
+    /***
+     * inOrder and inOrderRec were also developed using sample code from geeksForGeeks
+     */
+    void inOrder() {
+        inOrderRec((BST<Integer>) this);
+    }
+
+    void inOrderRec(BST<Integer> inputBST) {
+        try {
+            if (inputBST.data != null) {
+                inOrderRec(inputBST.leftSubTree);
+                System.out.print(inputBST.data + "    ");
+                inOrderRec(inputBST.rightSubTree);
+            }
+        } catch (NullPointerException e) {
+        }
     }
 
     @Override
     public boolean isBST() {
+        if (leftSubTree != null && rightSubTree != null) {
+            return leftSubTree.isBSTGoLeft(data) && rightSubTree.isBSTGoRight(data);
+        } else if (leftSubTree != null) {
+            return leftSubTree.isBSTGoLeft(data);
+        } else if (rightSubTree != null) {
+            return rightSubTree.isBSTGoRight(data);
+        }
+        return data != null;
+    }
+
+    public boolean isBSTGoRight(Integer min) {
+        if (data != null) {
+            if (leftSubTree != null && rightSubTree != null) {
+                return (data.compareTo(min) >= 0) && leftSubTree.isBSTWithBothBounds(min, data) && rightSubTree.isBSTGoRight(data) && data != null;
+            } else if (leftSubTree != null) {
+                return (data.compareTo(min) >= 0) && leftSubTree.isBSTWithBothBounds(min, data) && data != null;
+            } else if (rightSubTree != null) {
+                return (data.compareTo(min) >= 0) && rightSubTree.isBSTGoRight(data) && data != null;
+            }
+            return data.compareTo(min) >= 0;
+        }
+        return false;
+    }
+
+
+    public boolean isBSTGoLeft(Integer max) {
+        if (data != null) {
+            if (leftSubTree != null && rightSubTree != null) {
+                return (data.compareTo(max) <= 0) && leftSubTree.isBSTGoLeft(data) && rightSubTree.isBSTWithBothBounds(data, max) && data != null;
+            } else if (leftSubTree != null) {
+                return (data.compareTo(max) <= 0) && leftSubTree.isBSTGoLeft(data) && data != null;
+            } else if (rightSubTree != null) {
+                return (data.compareTo(max) <= 0) && rightSubTree.isBSTWithBothBounds(data, max) && data != null;
+            }
+            return (data.compareTo(max) <= 0);
+        }
+        return false;
+    }
+
+
+    public boolean isBSTWithBothBounds(Integer min, Integer max) {
+        if (data != null) {
+            if (leftSubTree != null && rightSubTree != null) {
+                return (data.compareTo(max) <= 0 && data.compareTo(min) >= 0 && leftSubTree.isBSTWithBothBounds(min, data) && rightSubTree.isBSTWithBothBounds(data, max));
+            } else if (leftSubTree != null) {
+                return (data.compareTo(max) <= 0 && data.compareTo(min) >= 0 && leftSubTree.isBSTWithBothBounds(min, data));
+            } else if (rightSubTree != null) {
+                return (data.compareTo(max) <= 0 && data.compareTo(min) >= 0 && rightSubTree.isBSTWithBothBounds(data, max));
+            }
+            return data.compareTo(max) <= 0 && data.compareTo(min) >= 0;
+        }
         return false;
     }
 }
