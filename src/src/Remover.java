@@ -4,7 +4,7 @@ public class Remover extends Thread {
     private final int removalData;
     private final BST<Integer> removalTree;
 
-    public Remover(int integerData, BST<Integer> tree) {
+    public Remover(BST<Integer> tree, int integerData) {
         removalData = integerData;
         removalTree = tree;
     }

@@ -12,9 +12,13 @@ public class Main {
         Random random = new Random();
         BST<Integer> sampleIntegerTree = new BST<>();
         try {
-            for (int i = 0; i < 50; i++) {
-                Inserter newInserter = new Inserter(sampleIntegerTree, random.nextInt(500)); // we create a new inserter thread
-                // that will try to insert a random integer between 0 & 500
+            int treeSize = 25;
+            int nums[] = new int[treeSize];
+            for (int num = 0; num < treeSize; num++) {
+                nums[num] = random.nextInt(500);
+            }
+            for (int i = 0; i < treeSize; i++) {
+                Inserter newInserter = new Inserter(sampleIntegerTree, nums[i]);
                 newInserter.start();
                 try {
                     newInserter.join();
@@ -22,7 +26,22 @@ public class Main {
                     System.out.println("Just in case?");
                 }
             }
-        } catch (NullPointerException e) {}
-        sampleIntegerTree.inOrder();
+            sampleIntegerTree.inOrder();
+
+            for (int j = 0; j < treeSize * 0.5; j++) {
+                Remover newRemover = new Remover(sampleIntegerTree, nums[random.nextInt(10)]);
+                newRemover.start();
+                try {
+                    newRemover.join();
+                } catch (Exception e) {
+                    System.out.println("Maybe?");
+                }
+            }
+            sampleIntegerTree.inOrder();
+
+        } catch (NullPointerException e) {
+        }
+
+
     }
 }
