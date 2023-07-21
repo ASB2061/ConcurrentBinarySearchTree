@@ -12,7 +12,7 @@ public class Main {
         Random random = new Random();
         BST<Integer> sampleIntegerTree = new BST<>();
         try {
-            int treeSize = 25;
+            int treeSize = 5;
             int nums[] = new int[treeSize];
             for (int num = 0; num < treeSize; num++) {
                 nums[num] = random.nextInt(500);
@@ -28,8 +28,8 @@ public class Main {
             }
             sampleIntegerTree.inOrder();
 
-            for (int j = 0; j < treeSize * 0.5; j++) {
-                Remover newRemover = new Remover(sampleIntegerTree, nums[random.nextInt(10)]);
+            for (int j = 0; j < 1; j++) {
+                Remover newRemover = new Remover(sampleIntegerTree, nums[random.nextInt(treeSize)]);
                 newRemover.start();
                 try {
                     newRemover.join();
@@ -37,11 +37,11 @@ public class Main {
                     System.out.println("Maybe?");
                 }
             }
-            sampleIntegerTree.inOrder();
 
         } catch (NullPointerException e) {
         }
 
+        sampleIntegerTree.inOrder();
 
     }
 }

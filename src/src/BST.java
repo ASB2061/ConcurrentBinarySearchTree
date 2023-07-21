@@ -8,26 +8,22 @@ import java.lang.Integer;
 /***
  * Concurrent BST Plan:
  * Rep. Invariant:
- *  The parent is greater or equal to left child and less than the right child.
+ *  The parent is greater or equal to left child and less than the right child. We will try to not have duplicates, but
+ *  inevitable.
  * Features:
  *  Insertion Function
  *  Removal Function
  *  Contains Function
- * Enabling Concurrency (i.e. allowing multiple threads to insert safely, but serializing removal)
+ * Enabling Concurrency (i.e. allowing multiple threads to insert and remove safely)
  *  Also need to prevent deadlock & starvation.
  *  If k threads are working on an object w/ n items, for n much larger than k, can all k threads run simultaneously
  *  when doing so would not create a problem?
  * Locking Rules
- *  When using insert, we must have some lock between nodes in BST so that we don't have two threads inserting at the
- *  same place at the same time.
- *  Need a way to switch between insert & remove. Or can we have insert and remove operate at the same time, using the
- *  inter-nodal locks ex: when we find the node that we want to remove, we can acquire its lock and prevent any inserters
- *  from moving past that section of the tree.
- *      Could have a semaphore labeled "tree access" that determines who controls the tree. {How do we decide when to
- *      switch? Should we have some way to detect potential removal or inserter threads? Some kind of gate?}
- *  One way of thinking about this is looking at number of threads operating on tree at once. Say the max number of
- *  threads to operate on tree at once is size of tree. Then must switch if we see a thread looking to remove; can also
- *  verify that there are no other threads looking to insert prior to locking the tree.
+ *  When using insert or remove, we must have some lock between nodes in BST so that we don't have two threads inserting
+ *  at the same place at the same time.
+ *      ex: when we find the node that we want to remove, we can acquire its lock and prevent any inserters from moving
+ *      past that section of the tree.
+ *
  * @param <E>
  */
 public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
@@ -35,27 +31,21 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
     private BST<Integer> leftSubTree; // reference to left subtree
     private BST<Integer> rightSubTree; // reference to right subtree
     private AtomicInteger size; // track the tree's size
-    private AtomicInteger inserterCount; // track the number of inserters
-    private AtomicInteger removerCount; // track the number of removers
-    private AtomicBoolean treeLock;
-    private Semaphore treeAccess;
+//    private AtomicInteger inserterCount; // track the number of inserters
+//    private AtomicInteger removerCount; // track the number of removers
+//    private AtomicBoolean treeLock;
+   // private Semaphore treeAccess;
     private Semaphore inserterLock; // used as our locks between nodes in the tree when inserting to prevent multiple
     // insertions in the same place at the same time.
-    private Semaphore inserterTreeAccess; // this will determine who gets access to the tree.
-    private Semaphore removerTreeAccess;
+//    private Semaphore inserterTreeAccess; // this will determine who gets access to the tree.
+//    private Semaphore removerTreeAccess;
 
     public BST() {
         data = null;
         leftSubTree = null;
         rightSubTree = null;
         size = new AtomicInteger(0);
-        inserterCount = new AtomicInteger(0);
-        removerCount = new AtomicInteger(0);
-        treeLock = new AtomicBoolean(false);
-        treeAccess = new Semaphore(1);
         inserterLock = new Semaphore(1);
-//        inserterTreeAccess = new Semaphore(1);
-//        removerTreeAccess = new Semaphore(1);
     }
 
     public BST(int rootElement) {
@@ -63,87 +53,44 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
         leftSubTree = null;
         rightSubTree = null;
         size = new AtomicInteger(1);
-        inserterCount = new AtomicInteger(0);
-        removerCount = new AtomicInteger(0);
-        treeLock = new AtomicBoolean(false);
-        treeAccess = new Semaphore(1);
         inserterLock = new Semaphore(1);
-//        inserterTreeAccess = new Semaphore(1);
-//        removerTreeAccess = new Semaphore(1);
     }
 
     @Override
     public void insert(Integer element) throws InterruptedException {
-        //inserterTreeAccess.acquire();
-        // treeStateInitialize(true, element);
-        // inserterCount.incrementAndGet();
         insertRecursive(element, null);
     }
 
     private void insertRecursive(Integer element, BST<Integer> parent) {
-        // , BST<Integer> superParent
         try {
-            // size++;
             if (parent != null) {
                 inserterLock.acquire();
                 parent.inserterLock.release();
-                size.incrementAndGet();
-                if (data == null) { // if the element is null we can place it there.
-                    data = element;
-                    inserterLock.release();
-                    // insertExit(superParent);
-                } else if (element.compareTo(data) > 0 && (rightSubTree == null)) { // if the element is greater and there is no
-                    rightSubTree = new BST<>(element);
-                    inserterLock.release();
-                    // insertExit(superParent);
-                } else if (element.compareTo(data) > 0) { // if the element is greater
-                    rightSubTree.insertRecursive(element, (BST<Integer>) this); // we recurse until there is an empty subtree to add the element
-                } else if (element.compareTo(data) <= 0 && (leftSubTree == null)) {
-                    // if the element is lesser and there is no leftSubtree
-                    leftSubTree = new BST<>(element);
-                    inserterLock.release();
-                    // insertExit(superParent);
-                } else if (element.compareTo(data) <= 0) { // if the element is lesser and there is a leftSubTree
-                    leftSubTree.insertRecursive(element, (BST<Integer>) this); // we recurse until there is an empty subtree to add the element
-                }
             } else {
                 inserterLock.acquire(1);
-                size.incrementAndGet();
-                if (data == null) { // if the element is null we can place it there.
-                    data = element;
-                    inserterLock.release();
-                    insertExit((BST<Integer>) this);
-                } else if (element.compareTo(data) > 0 && (rightSubTree == null)) { // if the element is greater and there is no subtree
-                    rightSubTree = new BST<>(element);
-                    inserterLock.release();
-                    insertExit((BST<Integer>) this);
-                } else if (element.compareTo(data) > 0) { // if the element is greater
-                    rightSubTree.insertRecursive(element, (BST<Integer>) this); // we recurse until there is an empty subtree to add the element
-                } else if (element.compareTo(data) <= 0 && (leftSubTree == null)) { // if the element is lesser and there is no
-                    // leftSubtree
-                    leftSubTree = new BST<>(element);
-                    inserterLock.release();
-                    insertExit((BST<Integer>) this);
-                } else if (element.compareTo(data) <= 0) { // if the element is lesser and there is a leftSubTree
-                    leftSubTree.insertRecursive(element, (BST<Integer>) this); // we recurse until there is an empty subtree to add the element
-                }
+            }
+            size.incrementAndGet();
+            if (data == null) { // if the element is null we can place it there.
+                data = element;
+                inserterLock.release();
+            } else if (element.compareTo(data) > 0 && (rightSubTree == null)) { // if the element is greater and there is no
+                rightSubTree = new BST<>(element);
+                inserterLock.release();
+            } else if (element.compareTo(data) > 0) { // if the element is greater
+                rightSubTree.insertRecursive(element, (BST<Integer>) this); // we recurse until there is an empty subtree to add the element
+            } else if (element.compareTo(data) <= 0 && (leftSubTree == null)) {
+                // if the element is lesser and there is no leftSubtree
+                leftSubTree = new BST<>(element);
+                inserterLock.release();
+            } else if (element.compareTo(data) <= 0) { // if the element is lesser and there is a leftSubTree
+                leftSubTree.insertRecursive(element, (BST<Integer>) this); // we recurse until there is an empty subtree to add the element
             }
         } catch (InterruptedException j) {
         }
     }
 
-    private void insertExit(BST<Integer> superTree) {
-//        superTree.inserterCount.decrementAndGet();
-//        if (superTree.inserterCount.compareAndSet(0, 0)) {
-//            // superTree.removerTreeAccess.release();
-//        }
-    }
-
     @Override
     public void remove(Integer e) throws InterruptedException {
-        //removerTreeAccess.acquire();
-        // treeStateInitialize(false, integer);
-        // removerCount.incrementAndGet();
         removeRecursive(e, null, null);
     }
 
@@ -152,15 +99,16 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
             if (parent != null) {
                 inserterLock.acquire(1);
                 parent.inserterLock.release();
+
                 if (data == null) { // if the root is already null then we can't do anything
                     inserterLock.release();
                     return;
                 } else if (data.compareTo(e) > 0) {
                     // if root is greater than the element we are searching for, we look in the left subtree.
-                    leftSubTree.removeRecursive(e, (BST<Integer>) parent, (BST<Integer>) initialLockNode);
+                    leftSubTree.removeRecursive(e, (BST<Integer>) this, (BST<Integer>) initialLockNode);
                 } else if (data.compareTo(e) < 0) {
                     // if root is less than the element we are searching for we look in the right subtree
-                    rightSubTree.removeRecursive(e, (BST<Integer>) parent, (BST<Integer>) initialLockNode);
+                    rightSubTree.removeRecursive(e, (BST<Integer>) this, (BST<Integer>) initialLockNode);
                 } else if (data.compareTo(e) == 0) {
                     // we have found the node that we were looking for (I still haven't found what I'm looking for ... U2)
                     if (leftSubTree == null && rightSubTree == null) {
@@ -209,6 +157,7 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
                 }
             } else {
                 inserterLock.acquire();
+                // size.decrementAndGet();
                 if (data == null) { // if the root is already null then we can't do anything
                     inserterLock.release();
                     return;
@@ -272,25 +221,6 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
         }
     }
 
-//    private void treeStateInitialize(boolean isInserter, Integer data) throws InterruptedException {
-//        if (treeLock.compareAndSet(false, true)) {
-//            if (isInserter) {
-//                inserterTreeAccess.acquire();
-//                removerTreeAccess.acquire();
-//                treeAccess.acquire();
-//            } else {
-//                inserterTreeAccess.acquire();
-//                removerTreeAccess.acquire();
-//                treeAccess.acquire();
-//            }
-//        } else {
-//            if (isInserter) {
-//                inserterTreeAccess.acquire();
-//            } else {
-//                removerTreeAccess.acquire();
-//            }
-//        }
-//    }
 
     @Override
     public Integer getRootElement() {
@@ -332,12 +262,8 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
 
     @Override
     public boolean isEmpty() {
-        return false;
+        return size.get() <= 0;
     }
-
-//    public boolean contains(E e) {
-//        return false;
-//    }
 
     @Override
     public boolean contains(Integer integer) {
@@ -362,6 +288,7 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
      * inOrder and inOrderRec were also developed using sample code from geeksForGeeks
      */
     void inOrder() {
+        // System.out.println(size.get());
         inOrderRec((BST<Integer>) this);
     }
 
@@ -432,3 +359,24 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
         return false;
     }
 }
+
+
+//    private void treeStateInitialize(boolean isInserter, Integer data) throws InterruptedException {
+//        if (treeLock.compareAndSet(false, true)) {
+//            if (isInserter) {
+//                inserterTreeAccess.acquire();
+//                removerTreeAccess.acquire();
+//                treeAccess.acquire();
+//            } else {
+//                inserterTreeAccess.acquire();
+//                removerTreeAccess.acquire();
+//                treeAccess.acquire();
+//            }
+//        } else {
+//            if (isInserter) {
+//                inserterTreeAccess.acquire();
+//            } else {
+//                removerTreeAccess.acquire();
+//            }
+//        }
+//    }
