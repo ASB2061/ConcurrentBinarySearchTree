@@ -31,14 +31,9 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
     private BST<Integer> leftSubTree; // reference to left subtree
     private BST<Integer> rightSubTree; // reference to right subtree
     private AtomicInteger size; // track the tree's size
-//    private AtomicInteger inserterCount; // track the number of inserters
-//    private AtomicInteger removerCount; // track the number of removers
-//    private AtomicBoolean treeLock;
-   // private Semaphore treeAccess;
     private Semaphore inserterLock; // used as our locks between nodes in the tree when inserting to prevent multiple
     // insertions in the same place at the same time.
-//    private Semaphore inserterTreeAccess; // this will determine who gets access to the tree.
-//    private Semaphore removerTreeAccess;
+
 
     public BST() {
         data = null;
@@ -99,10 +94,8 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
             if (parent != null) {
                 inserterLock.acquire(1);
                 parent.inserterLock.release();
-
                 if (data == null) { // if the root is already null then we can't do anything
                     inserterLock.release();
-                    return;
                 } else if (data.compareTo(e) > 0) {
                     // if root is greater than the element we are searching for, we look in the left subtree.
                     leftSubTree.removeRecursive(e, (BST<Integer>) this, (BST<Integer>) initialLockNode);
@@ -115,7 +108,6 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
                         size.decrementAndGet();
                         data = null;
                         inserterLock.release();
-                        return;
                     } else if (leftSubTree == null) { // if there is no left node.
                         rightSubTree.inserterLock.acquire();
                         rightSubTree.leftSubTree.inserterLock.acquire();
@@ -128,7 +120,6 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
                         rightSubTree.leftSubTree.inserterLock.release();
                         rightSubTree.rightSubTree.inserterLock.release();
                         inserterLock.release();
-                        return;
                     } else if (rightSubTree == null) { // if there is no right node.
                         leftSubTree.inserterLock.acquire();
                         leftSubTree.leftSubTree.inserterLock.acquire();
@@ -141,7 +132,6 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
                         leftSubTree.leftSubTree.inserterLock.release();
                         leftSubTree.rightSubTree.inserterLock.release();
                         inserterLock.release();
-                        return;
                     } else { // if there are two nodes
                         size.decrementAndGet();
                         rightSubTree.inserterLock.acquire(); // we lock off the right subtree, b/c we need the next node
@@ -151,7 +141,6 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
                         minValue(rightSubTree).inserterLock.release();
                         rightSubTree.inserterLock.release();
                         inserterLock.release();
-                        return;
                         // rightSubTree.data = remove(rightSubTree.data);
                     }
                 }
@@ -160,7 +149,6 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
                 // size.decrementAndGet();
                 if (data == null) { // if the root is already null then we can't do anything
                     inserterLock.release();
-                    return;
                 } else if (data.compareTo(e) > 0) {
                     // if root is greater than the element we are searching for, we look in the left subtree.
                     leftSubTree.removeRecursive(e, (BST<Integer>) this, (BST<Integer>) this);
@@ -173,7 +161,6 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
                         size.decrementAndGet();
                         data = null;
                         inserterLock.release();
-                        return;
                     } else if (leftSubTree == null) { // if there is no left node.
                         rightSubTree.inserterLock.acquire();
                         rightSubTree.leftSubTree.inserterLock.acquire();
@@ -186,7 +173,6 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
                         rightSubTree.leftSubTree.inserterLock.release();
                         rightSubTree.rightSubTree.inserterLock.release();
                         inserterLock.release();
-                        return;
                     } else if (rightSubTree == null) { // if there is no right node.
                         leftSubTree.inserterLock.acquire();
                         leftSubTree.leftSubTree.inserterLock.acquire();
@@ -199,7 +185,6 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
                         leftSubTree.leftSubTree.inserterLock.release();
                         leftSubTree.rightSubTree.inserterLock.release();
                         inserterLock.release();
-                        return;
                     } else { // if there are two nodes
                         size.decrementAndGet();
                         rightSubTree.inserterLock.acquire(); // we lock off the right subtree, b/c we need the next node
@@ -209,7 +194,6 @@ public class BST<E extends Comparable<E>> implements BinarySearchTree<E> {
                         minValue(rightSubTree).inserterLock.release();
                         rightSubTree.inserterLock.release();
                         inserterLock.release();
-                        return;
                         // rightSubTree.data = remove(rightSubTree.data);
                     }
                 }

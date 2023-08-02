@@ -2,9 +2,9 @@ package src;
 
 public class Inserter extends Thread {
     private final int writingData;
-    private final BST<Integer> treeToWrite;
+    private final ConcurrentBinarySearchTree<Integer> treeToWrite;
 
-    public Inserter(BST<Integer> writingTree, int inputData) {
+    public Inserter(ConcurrentBinarySearchTree<Integer> writingTree, int inputData) {
         writingData = inputData;
         treeToWrite = writingTree;
     }
