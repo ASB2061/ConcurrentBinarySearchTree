@@ -2,9 +2,9 @@ package src;
 
 public class Remover extends Thread {
     private final int removalData;
-    private final BST<Integer> removalTree;
+    private final ConcurrentBinarySearchTree<Integer> removalTree;
 
-    public Remover(BST<Integer> tree, int integerData) {
+    public Remover(ConcurrentBinarySearchTree<Integer> tree, int integerData) {
         removalData = integerData;
         removalTree = tree;
     }
